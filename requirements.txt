@@ -1,3 +1,4 @@
+jupyter
 kfp==1.8.18
 pandas==1.2.4
 numpy==1.21.0
