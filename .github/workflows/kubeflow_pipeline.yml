@@ -26,7 +26,7 @@ jobs:
       
       - name: Verify Kubeflow connection
         run: |
-          curl http://localhost:8080/apis/v1beta1/healthz
+          curl http://127.0.0.1:8080/apis/v1beta1/healthz
 
       - name:  run pipeline
         run: |
