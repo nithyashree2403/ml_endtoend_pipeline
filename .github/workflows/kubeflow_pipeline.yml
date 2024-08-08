@@ -28,6 +28,6 @@ jobs:
         run: |
           curl http://localhost:8080/apis/v1beta1/healthz
 
-      - name: Execute Jupyter notebook
+      - name:  run pipeline
         run: |
-          jupyter nbconvert --to notebook --execute kubeflow.ipynb
+          kubeflow.py
