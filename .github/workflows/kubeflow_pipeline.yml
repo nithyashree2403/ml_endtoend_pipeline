@@ -8,6 +8,7 @@ on:
 jobs:
   run-pipeline:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -19,7 +20,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install kfp==1.8.10  # Use the appropriate version of kfp
+          pip install kfp==1.8.10
           pip install pandas==1.2.4
           pip install numpy==1.21.0
           pip install scikit-learn==0.24.2
@@ -28,40 +29,32 @@ jobs:
         run: |
           python -c "
 import kfp
-import kfp.dsl as dsl
-from pipeline_definition import iris_classifier_pipeline  # Ensure pipeline_definition.py is in your repo
+from pipeline_definition import iris_classifier_pipeline
 
-# Compile the pipeline
 kfp.compiler.Compiler().compile(
     pipeline_func=iris_classifier_pipeline,
     package_path='IRIS_Classifier_pipeline2.yaml'
 )"
-        # Make sure you have the pipeline definition file in your repo or adjust the import accordingly.
-
+      
       - name: Run pipeline
         env:
           KFP_HOST: ${{ secrets.KFP_HOST }}
           KFP_NAMESPACE: ${{ secrets.KFP_NAMESPACE }}
-       
         run: |
           python -c "
 import kfp
 import datetime
-from pipeline_definition import iris_classifier_pipeline  # Ensure pipeline_definition.py is in your repo
+from pipeline_definition import iris_classifier_pipeline
 
-# Initialize KFP client
 client = kfp.Client(
     host='$KFP_HOST',
     namespace='$KFP_NAMESPACE'
-    # If needed, add authentication details here
 )
 
-# Define parameters
 data_path = '/data'
 experiment_name = 'iris_classifier_exper_' + str(datetime.datetime.now().date())
 run_name = 'iris_classifier_pipeline_run'
 
-# Submit pipeline
 run_result = client.create_run_from_pipeline_func(
     iris_classifier_pipeline,
     experiment_name=experiment_name,
