@@ -3,4 +3,7 @@ kfp==1.8.18
 pandas==1.2.4
 numpy==1.21.0
 scikit-learn==0.24.2
+requests==2.26.0
+requests_toolbelt==0.9.1
+urllib3==1.26.6
 #hello cheack
