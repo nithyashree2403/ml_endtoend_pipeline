@@ -16,7 +16,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.7
+          python-version: '3.7'
 
       - name: Install dependencies
         run: |
@@ -35,7 +35,7 @@ kfp.compiler.Compiler().compile(
     pipeline_func=iris_classifier_pipeline,
     package_path='IRIS_Classifier_pipeline2.yaml'
 )"
-      
+
       - name: Run pipeline
         env:
           KFP_HOST: ${{ secrets.KFP_HOST }}
@@ -44,7 +44,6 @@ kfp.compiler.Compiler().compile(
           python -c "
 import kfp
 import datetime
-from pipeline_definition import iris_classifier_pipeline
 
 client = kfp.Client(
     host='$KFP_HOST',
