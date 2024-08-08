@@ -42,7 +42,7 @@ kfp.compiler.Compiler().compile(
         env:
           KFP_HOST: ${{ secrets.KFP_HOST }}
           KFP_NAMESPACE: ${{ secrets.KFP_NAMESPACE }}
-          KFP_AUTH: ${{ secrets.KFP_AUTH }}  # Optional, depending on your KFP setup
+       
         run: |
           python -c "
 import kfp
