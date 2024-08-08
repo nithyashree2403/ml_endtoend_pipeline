@@ -1,12 +1,13 @@
-name: Kubeflow Pipeline Automation
+name: Run Kubeflow Pipeline
 
 on:
   push:
     branches:
-      - main
+      - main  # Trigger on push to the main branch
+  workflow_dispatch:  # Allows manual triggering of the workflow
 
 jobs:
-  run-pipeline:
+  run_pipeline:
     runs-on: ubuntu-latest
 
     steps:
@@ -20,48 +21,108 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install kfp==1.8.10
-          pip install pandas==1.2.4
-          pip install numpy==1.21.0
-          pip install scikit-learn==0.24.2
+          python -m pip install --upgrade pip
+          pip install kfp pandas numpy scikit-learn
 
-      - name: Compile pipeline
+      - name: Compile and run Kubeflow pipeline
         run: |
           python -c "
 import kfp
-from pipeline_definition import iris_classifier_pipeline
-
-kfp.compiler.Compiler().compile(
-    pipeline_func=iris_classifier_pipeline,
-    package_path='IRIS_Classifier_pipeline2.yaml'
-)"
-      
-      - name: Run pipeline
-        env:
-          KFP_HOST: ${{ secrets.KFP_HOST }}
-          KFP_NAMESPACE: ${{ secrets.KFP_NAMESPACE }}
-        run: |
-          python -c "
-import kfp
+from kfp import dsl
 import datetime
-from pipeline_definition import iris_classifier_pipeline
 
-client = kfp.Client(
-    host='$KFP_HOST',
-    namespace='$KFP_NAMESPACE'
+# Define the pipeline functions
+def prepare_data():
+    import ssl
+    import pandas as pd
+    ssl._create_default_https_context = ssl._create_unverified_context
+    df = pd.read_csv('https://raw.githubusercontent.com/TripathiAshutosh/dataset/main/iris.csv')
+    df = df.dropna()
+    df.to_csv('data/final_df.csv', index=False)
+    print('Data saved to /data/final_df.csv')
+
+def train_test_split():
+    import pandas as pd
+    import numpy as np
+    from sklearn.model_selection import train_test_split
+    final_data = pd.read_csv('data/final_df.csv')
+    target_column = 'class'
+    X = final_data.drop(columns=[target_column])
+    y = final_data[target_column]
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, stratify=y, random_state=47)
+    np.save('data/X_train.npy', X_train)
+    np.save('data/X_test.npy', X_test)
+    np.save('data/y_train.npy', y_train)
+    np.save('data/y_test.npy', y_test)
+
+def training_basic_classifier():
+    import numpy as np
+    from sklearn.linear_model import LogisticRegression
+    X_train = np.load('data/X_train.npy', allow_pickle=True)
+    y_train = np.load('data/y_train.npy', allow_pickle=True)
+    classifier = LogisticRegression(max_iter=500)
+    classifier.fit(X_train, y_train)
+    import pickle
+    with open('data/model.pkl', 'wb') as f:
+        pickle.dump(classifier, f)
+
+def predict_on_test_data():
+    import numpy as np
+    import pickle
+    from sklearn.metrics import classification_report
+    with open('data/model.pkl', 'rb') as f:
+        model = pickle.load(f)
+    X_test = np.load('data/X_test.npy', allow_pickle=True)
+    y_pred = model.predict(X_test)
+    np.save('data/y_pred.npy', y_pred)
+    print('Predictions:', y_pred)
+
+def get_metrics():
+    import numpy as np
+    from sklearn.metrics import accuracy_score, precision_score, recall_score, log_loss
+    y_test = np.load('data/y_test.npy', allow_pickle=True)
+    y_pred = np.load('data/y_pred.npy', allow_pickle=True)
+    acc = accuracy_score(y_test, y_pred)
+    prec = precision_score(y_test, y_pred, average='micro')
+    recall = recall_score(y_test, y_pred, average='micro')
+    print('Metrics:', {'accuracy': acc, 'precision': prec, 'recall': recall})
+
+@dsl.pipeline(
+   name='IRIS classifier Pipeline',
+   description='A pipeline for training and evaluating an IRIS classifier'
 )
+def iris_classifier_pipeline(data_path: str):
+    vop = dsl.VolumeOp(
+        name='data-volume',
+        resource_name='data-volume', 
+        size='1Gi', 
+        modes=dsl.VOLUME_MODE_RWO
+    )
+    
+    prepare_data_task = prepare_data().add_pvolumes({data_path: vop.volume})
+    train_test_split_task = train_test_split().add_pvolumes({data_path: vop.volume}).after(prepare_data_task)
+    training_task = training_basic_classifier().add_pvolumes({data_path: vop.volume}).after(train_test_split_task)
+    predict_task = predict_on_test_data().add_pvolumes({data_path: vop.volume}).after(training_task)
+    metrics_task = get_metrics().add_pvolumes({data_path: vop.volume}).after(predict_task)
 
-data_path = '/data'
-experiment_name = 'iris_classifier_exper_' + str(datetime.datetime.now().date())
-run_name = 'iris_classifier_pipeline_run'
+    prepare_data_task.execution_options.caching_strategy.max_cache_staleness = 'P0D'
+    train_test_split_task.execution_options.caching_strategy.max_cache_staleness = 'P0D'
+    training_task.execution_options.caching_strategy.max_cache_staleness = 'P0D'
+    predict_task.execution_options.caching_strategy.max_cache_staleness = 'P0D'
+    metrics_task.execution_options.caching_strategy.max_cache_staleness = 'P0D'
 
-run_result = client.create_run_from_pipeline_func(
-    iris_classifier_pipeline,
-    experiment_name=experiment_name,
-    run_name=run_name,
-    arguments={'data_path': data_path}
-)
+# Compile the pipeline
+pipeline_func = iris_classifier_pipeline
+experiment_name = 'iris_classifier_experiment'
+run_name = 'run_' + str(datetime.datetime.now().strftime("%Y%m%d_%H%M%S"))
+arguments = {'data_path': '/data'}
 
-print('Run ID:', run_result.run_id)
-print('Run URL:', run_result.run_url)
+kfp.compiler.Compiler().compile(pipeline_func, '{}.zip'.format(experiment_name))
+
+# Submit the pipeline run
+client = kfp.Client()
+run_result = client.create_run_from_pipeline_func(pipeline_func, 
+                                                  experiment_name=experiment_name, 
+                                                  run_name=run_name, 
+                                                  arguments=arguments)
 "
