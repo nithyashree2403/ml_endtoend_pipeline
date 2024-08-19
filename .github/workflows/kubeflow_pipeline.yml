@@ -42,8 +42,7 @@ jobs:
 
       - name: Verify Kubeflow connection
         run: |
-          kubectl port-forward -n kubeflow svc/ml-pipeline-ui 8080:80 
-
+          curl http://127.0.0.1:8080/apis/v1beta1/healthz
       - name: Run pipeline
         run: |
           python kubeflow.py
