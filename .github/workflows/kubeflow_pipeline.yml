@@ -23,11 +23,19 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      
+
+      # This step needs to be adjusted to work in GitHub Actions
+      # Ensure Kubeflow is accessible from the Actions runner environment
       - name: Verify Kubeflow connection
         run: |
           curl http://127.0.0.1:8080/apis/v1beta1/healthz
 
-      - name:  run pipeline
+      # Ensure kubeflow.py is correctly configured and executable
+      - name: Run pipeline
         run: |
-          kubeflow.py
+          python kubeflow.py
+        # Optionally, use GitHub Secrets for sensitive info and environment variables
+        env:
+          KUBEFLOW_ENDPOINT: ${{ secrets.KUBEFLOW_ENDPOINT }}
+          KUBEFLOW_API_KEY: ${{ secrets.KUBEFLOW_API_KEY }}
+ 
