@@ -3,13 +3,12 @@ name: Run Kubeflow Pipeline
 on:
   push:
     branches:
-      - main  # Trigger on push to the main branch
-  workflow_dispatch:  # Allows manual triggering of the workflow
+      - main
+  workflow_dispatch:
 
 jobs:
   run_pipeline:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -24,18 +23,30 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # This step needs to be adjusted to work in GitHub Actions
-      # Ensure Kubeflow is accessible from the Actions runner environment
+      - name: Set up kubectl
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y kubectl
+
+      - name: Configure kubectl
+        run: |
+          kubectl config set-cluster my-cluster --server=https://YOUR_CLUSTER_SERVER
+          kubectl config set-credentials my-user --token=${{ secrets.KUBE_TOKEN }}
+          kubectl config set-context my-context --cluster=my-cluster --user=my-user
+          kubectl config use-context my-context
+
+      - name: Port forward ml-pipeline service
+        run: |
+          kubectl port-forward service/ml-pipeline 8080:8888 &
+          sleep 10 # Wait for port-forward to establish
+
       - name: Verify Kubeflow connection
         run: |
-          curl http://127.0.0.1:8080/apis/v1beta1/healthz
+          curl http://localhost:8080/apis/v1beta1/healthz
 
-      # Ensure kubeflow.py is correctly configured and executable
       - name: Run pipeline
         run: |
           python kubeflow.py
-        # Optionally, use GitHub Secrets for sensitive info and environment variables
         env:
-          KUBEFLOW_ENDPOINT: ${{ secrets.KUBEFLOW_ENDPOINT }}
+          KUBEFLOW_ENDPOINT: http://localhost:8080
           KUBEFLOW_API_KEY: ${{ secrets.KUBEFLOW_API_KEY }}
- 
