@@ -50,3 +50,4 @@ jobs:
           KUBEFLOW_ENDPOINT: http://localhost:8080
           KUBEFLOW_API_KEY: ${{ secrets.KUBEFLOW_API_KEY }}
 #try without running the kubectl 
+#
