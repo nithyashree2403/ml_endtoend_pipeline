@@ -47,7 +47,7 @@ jobs:
         run: |
           python kubeflow.py
         env:
-          KUBEFLOW_ENDPOINT: http://localhost:8080
+          KUBEFLOW_ENDPOINT: http://127.0.0.1:8080
           # KUBEFLOW_API_KEY: ${{ secrets.KUBEFLOW_API_KEY }}
 #try without running the kubectl 
 #
