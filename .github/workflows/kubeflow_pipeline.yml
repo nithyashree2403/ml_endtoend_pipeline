@@ -28,12 +28,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y kubectl
 
-      - name: Configure kubectl
-        run: |
-          kubectl config set-cluster my-cluster --server=https://YOUR_CLUSTER_SERVER
-          kubectl config set-credentials my-user --token=${{ secrets.KUBE_TOKEN }}
-          kubectl config set-context my-context --cluster=my-cluster --user=my-user
-          kubectl config use-context my-context
+      # - name: Configure kubectl
+      #   run: |
+      #     kubectl config set-cluster my-cluster --server=https://YOUR_CLUSTER_SERVER
+      #     kubectl config set-credentials my-user --token=${{ secrets.KUBE_TOKEN }}
+      #     kubectl config set-context my-context --cluster=my-cluster --user=my-user
+      #     kubectl config use-context my-context
 
       - name: Port forward ml-pipeline service
         run: |
@@ -48,6 +48,6 @@ jobs:
           python kubeflow.py
         env:
           KUBEFLOW_ENDPOINT: http://localhost:8080
-          KUBEFLOW_API_KEY: ${{ secrets.KUBEFLOW_API_KEY }}
+          # KUBEFLOW_API_KEY: ${{ secrets.KUBEFLOW_API_KEY }}
 #try without running the kubectl 
 #
